@@ -1,3 +1,19 @@
+# coding=utf-8
+# Copyright 2018 The Google AI Language Team Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Tokenization classes."""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -171,6 +187,7 @@ class BasicTokenizer(object):
 
   def __init__(self, do_lower_case=True):
     """Constructs a BasicTokenizer.
+
     Args:
       do_lower_case: Whether to lower case the input.
     """
@@ -290,14 +307,18 @@ class WordpieceTokenizer(object):
 
   def tokenize(self, text):
     """Tokenizes a piece of text into its word pieces.
+
     This uses a greedy longest-match-first algorithm to perform tokenization
     using the given vocabulary.
+
     For example:
       input = "unaffable"
       output = ["un", "##aff", "##able"]
+
     Args:
       text: A single token or whitespace separated tokens. This should have
         already been passed through `BasicTokenizer.
+
     Returns:
       A list of wordpiece tokens.
     """

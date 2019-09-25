@@ -4,6 +4,7 @@
 Extracts example sentences for every word in a vocabulary from a corpus of
 Wikipedia articles and produces a JSON file (to OUTPUT_FILE, below)
 with the words, sentences, and suitability scores.
+
 The corpus of articles to use is in CORPUS_FILE (on the AWS s3 bucket
 given by S3_BUCKET).  Each line in this file is an S3 file pointing to a
 document containing article text that was produced by the wikiextractor tool
@@ -25,7 +26,7 @@ S3_BUCKET = "dougb_wikipedia"
 S3_REGION = "us-east-1"
 
 # For each word, output this many example sentences
-OUTPUTS_PER_WORD = 5
+OUTPUTS_PER_WORD = 30 #5
 
 # File which contains a list of wikipedia data files (as S3 keys) to process
 CORPUS_FILE = "enwiki.tiny"
@@ -61,7 +62,7 @@ class WikiSentenceExtractor():
 
         self.logger.info("Loading Spacy data...")
         self.nlp = spacy.load('en_core_web_sm')
-        self.nlp.add_pipe(self.nlp.create_pipe('sentencizer'))
+        # self.nlp.add_pipe(self.nlp.create_pipe('sentencizer'))
 
     def _sentence_suitability_score(self, sentence, word):
         """Returns a measure of how well the sentence "sentence" exemplifies
@@ -70,7 +71,6 @@ class WikiSentenceExtractor():
         topicality, and interestingness into how the score is computed.
         """
         return 1000*simplicity.score_sentence2(sentence, word)
-        # return 10000 - len(sentence)
 
     def _read_s3_file(self, key):
         """Read a text file from s3."""
@@ -102,15 +102,12 @@ class WikiSentenceExtractor():
 
     def _process_wiki_doc(self, title, article_content):
         """Process a single wikipedia article."""
-        # Convert article content to a list of sentences
-        # sentences = list(self.nlp(article_content, disable=['parser', 'tagger', 'ner']).sents)
-        # self.logger.info("Reading %d sentences in %s", len(sentences), title)
+        # nlp = spacy.load("en_core_web_sm")
+        sentences = list(self.nlp(article_content).sents)        
 
+        self.logger.info("Reading %d sentences in %s", len(sentences), title)
 
-        nlp2 = spacy.load("en_core_web_sm")
-        sentences2 = list(nlp2(article_content).sents)
-
-        for sentence in sentences2:
+        for sentence in sentences:
             # For each word, score the sentence as an example for the word, and
             # push the results into the heap of example sentences for the word.
             sentence_str = str(sentence)
@@ -149,8 +146,7 @@ class WikiSentenceExtractor():
                 continue
             elif line.startswith("</doc>"):
                 if title in self.title_weights:
-                    print(title)
-                self._process_wiki_doc(title, " ".join(article_lines))
+                    self._process_wiki_doc(title, " ".join(article_lines))
             else:
                 article_lines.append(line)
 
