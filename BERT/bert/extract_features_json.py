@@ -79,6 +79,10 @@ flags.DEFINE_bool(
 
 flags.DEFINE_string("words", "", "words to analyze seperated by '-'. For example 'building-structure'")
 
+
+# NOT YET IMPLEMENTED
+flags.DEFINE_bool("full_output", False, "If set to false, will save just output layers of desired words") 
+
 class InputExample(object):
 
   def __init__(self, unique_id, text_a, text_b):
@@ -320,10 +324,11 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
 def read_examples(input_file, words):
   """Read a list of `InputExample`s from an input file."""
   examples = []
+  guid_to_text = {}
   with open(input_file, "r") as file:
     example_sentences = json.load(file)
   for word in words:
-    unique_id = 0
+    id_int = 0
     sentences = [sentence_data['string'] for sentence_data in example_sentences.get(word, [])]
     for sentence in sentences:
       text_a = None
@@ -334,9 +339,11 @@ def read_examples(input_file, words):
       else:
         text_a = m.group(1)
         text_b = m.group(2)
-      examples.append(InputExample(unique_id=("%s-%d" % (word, unique_id)), text_a=text_a, text_b=text_b))
-      unique_id += 1
-  return examples
+      unique_id = ("%s-%d" % (word, id_int))
+      guid_to_text[unique_id] = sentence
+      examples.append(InputExample(unique_id=(unique_id), text_a=text_a, text_b=text_b))
+      id_int += 1
+  return examples, guid_to_text
 
   
 
@@ -380,7 +387,8 @@ def main(_):
           num_shards=FLAGS.num_tpu_cores,
           per_host_input_for_training=is_per_host))
 
-  examples = read_examples(FLAGS.input_file, FLAGS.words.split("-"))
+  words_to_analyze = set(FLAGS.words.split("-"))
+  examples, guid_to_text = read_examples(FLAGS.input_file, words_to_analyze)
 
   features = convert_examples_to_features(
       examples=examples, seq_length=FLAGS.max_seq_length, tokenizer=tokenizer)
@@ -412,23 +420,27 @@ def main(_):
     for result in estimator.predict(input_fn, yield_single_examples=True):
       unique_id = result["unique_id"].decode("utf-8")
       feature = unique_id_to_feature[unique_id]
+      
       output_json = collections.OrderedDict()
       output_json["linex_index"] = unique_id
+      output_json["original_sentence"] = guid_to_text[unique_id]
       all_features = []
       for (i, token) in enumerate(feature.tokens):
-        all_layers = []
-        for (j, layer_index) in enumerate(layer_indexes):
-          layer_output = result["layer_output_%d" % j]
-          layers = collections.OrderedDict()
-          layers["index"] = layer_index
-          layers["values"] = [
-              round(float(x), 6) for x in layer_output[i:(i + 1)].flat
-          ]
-          all_layers.append(layers)
-        features = collections.OrderedDict()
-        features["token"] = token
-        features["layers"] = all_layers
-        all_features.append(features)
+        if (token in words_to_analyze) or FLAGS.full_output:
+          all_layers = []
+          for (j, layer_index) in enumerate(layer_indexes):
+            layer_output = result["layer_output_%d" % j]
+            layers = collections.OrderedDict()
+            layers["index"] = layer_index
+            layers["values"] = [
+                round(float(x), 6) for x in layer_output[i:(i + 1)].flat
+            ]
+            all_layers.append(layers)
+
+          features = collections.OrderedDict()
+          features["token"] = token
+          features["layers"] = all_layers if FLAGS.full_output else [all_layers[0]]
+          all_features.append(features)
       output_json["features"] = all_features
       writer.write(json.dumps(output_json) + "\n")
 
@@ -439,4 +451,5 @@ if __name__ == "__main__":
   flags.mark_flag_as_required("bert_config_file")
   flags.mark_flag_as_required("init_checkpoint")
   flags.mark_flag_as_required("output_file")
+  flags.mark_flag_as_required("words")
   tf.app.run()

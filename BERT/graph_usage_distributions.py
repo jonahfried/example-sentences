@@ -7,6 +7,7 @@ import numpy as np
 from collections import defaultdict
 import argparse 
 import re
+from tqdm import tqdm
 
 def get_data(filename): #Give a use default location option (could do a str comp?)
     ''' loads in data from f"./output/{filename}.jsonl", breaks it up into a list of '''
@@ -16,10 +17,10 @@ def get_data(filename): #Give a use default location option (could do a str comp
     data_features = []
     labels = []
     text = []
-    for sentence in data:
+    for sentence in tqdm(data):
         word = sentence["linex_index"].split("-")[0] # the unique index consists of the word chosen for analysis and and incremental variable (ex word-9)
         features = sentence['features']
-        sentence_text = " ".join([feature["token"] for feature in sentence["features"]])
+        sentence_text = sentence['original_sentence']
         for feature in features:
             if feature["token"] == word: #possible error from change due to tokenization
                 labels.append(word)
@@ -64,7 +65,7 @@ if __name__ == "__main__":
     clusters_by_embedding = [hdbscan.HDBSCAN().fit_predict(embedding) for embedding in embeddings]
     clustered_by_embedding = [(cluster >= 0) for cluster in clusters_by_embedding] # a list of a lists, each marking whether a case was clustered in paired embedding 
     
-    for (i, embedding) in enumerate(embeddings):
+    for (i, embedding) in tqdm(enumerate(embeddings)):
         clustered = clustered_by_embedding[i] # The array defining whether they were grouped (could just set to all yes if user tags doesn't care?)
         title = word_data_groups[i][1][0] #a label from the current group
         fig = go.Figure(
