@@ -23,8 +23,8 @@ import collections
 import json
 import re
 
-import modeling
-import tokenization
+from bert import modeling
+from bert import tokenization
 import tensorflow as tf
 
 flags = tf.app.flags
@@ -78,10 +78,7 @@ flags.DEFINE_bool(
     "since it is much faster.")
 
 flags.DEFINE_string("words", "", "words to analyze seperated by '-'. For example 'building-structure'")
-
-
-# NOT YET IMPLEMENTED
-flags.DEFINE_bool("full_output", False, "If set to false, will save just output layers of desired words") 
+flags.DEFINE_bool("full_output", False, "If set to false (default), will save just final output layer of just desired words") 
 
 class InputExample(object):
 

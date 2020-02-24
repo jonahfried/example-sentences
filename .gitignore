@@ -2,3 +2,9 @@ __pycache__
 .ipynb_checkpoints
 .vscode
 .DS_Store
+example_sentences.json
+features
+graphs
+bert-base-uncased
+./example_sentences.json
+*.json

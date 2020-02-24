@@ -20,19 +20,21 @@ import boto3
 import spacy   # Used to split the Wikipedia articles into sentences
 
 import simplicity
+from tqdm import tqdm
 
 # S3 bucket and region in which wikipedia data resides
 S3_BUCKET = "dougb_wikipedia"
 S3_REGION = "us-east-1"
 
 # For each word, output this many example sentences
-OUTPUTS_PER_WORD = 30 #5
+OUTPUTS_PER_WORD = 3000 #5
 
 # File which contains a list of wikipedia data files (as S3 keys) to process
-CORPUS_FILE = "enwiki.tiny"
+CORPUS_FILE = "enwiki.full"
 
 # File which contains the vocabulary of words to seek example sentences for
 VOCAB_FILE = "enwiki.vocab"
+
 # Exclude examples sentences for these very common words
 STOPWORDS_FILE = "enwiki.stopwords"
 
@@ -41,6 +43,7 @@ STOPWORDS_FILE = "enwiki.stopwords"
 TITLE_WEIGHTS_FILE = "enwiki.pageviews"
 # Only consider articles that are in the top TOPN_TITLES of articles by pageview count
 TOPN_TITLES = 100000
+CORPUSES_TO_READ = 50
 
 # File to write out example sentences
 OUTPUT_FILE = "example_sentences.json"
@@ -80,8 +83,7 @@ class WikiSentenceExtractor():
     def run(self):
         """Iterate over the corpus, populating example_sentences."""
         # Read vocabulary
-        self.vocab = {x.split()[0].lower() for x in
-                      self._read_s3_file(VOCAB_FILE).split("\n")}
+        self.vocab = {x.split()[0].lower() for x in self._read_s3_file(VOCAB_FILE).split("\n")}
         # Remove stopwords from vocabulary
         self.vocab = self.vocab.difference(
             {x.split()[0].lower() for x in self._read_s3_file(STOPWORDS_FILE).split("\n")})
@@ -97,8 +99,11 @@ class WikiSentenceExtractor():
 
         # Read corpus file and process each file
         doc_keys_to_process = self._read_s3_file(CORPUS_FILE).split("\n")
-        for doc_key in doc_keys_to_process:
+        for (i, doc_key) in tqdm(enumerate(doc_keys_to_process)):
+            if i > CORPUSES_TO_READ:
+                break
             self._process_corpus_file(doc_key)
+
 
     def _process_wiki_doc(self, title, article_content):
         """Process a single wikipedia article."""
@@ -112,7 +117,7 @@ class WikiSentenceExtractor():
             # push the results into the heap of example sentences for the word.
             sentence_str = str(sentence)
             sentence_obj = json.dumps({"string": sentence_str, "wiki_title": title})
-            for token in sentence:
+            for token in tqdm(sentence):
                 str_token = str(token).lower()
                 if str_token in self.vocab:
                     score = self._sentence_suitability_score(sentence, token)
@@ -129,7 +134,7 @@ class WikiSentenceExtractor():
         result = {}
         for key, heap in self.example_sentences.items():
             heap.sort(reverse=True)
-            result[key] = [{"score": x[0], "sentence": json.loads(x[1])} for x in heap]
+            result[key] = [json.loads(x[1]) for x in heap] # THIS VERSION DOESN'T INCLUDE THE SCORE
         return json.dumps(result, indent=4)
 
     def _process_corpus_file(self, s3_key):

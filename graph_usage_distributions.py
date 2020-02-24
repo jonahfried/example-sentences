@@ -12,7 +12,7 @@ from tqdm import tqdm
 def get_data(filename): #Give a use default location option (could do a str comp?)
     ''' loads in data from f"./output/{filename}.jsonl", breaks it up into a list of '''
 
-    with open(f"./output/{filename}.jsonl") as file: 
+    with open(f"./features/{filename}.jsonl") as file: 
         data = [json.loads(line) for line in file]
     data_features = []
     labels = []
@@ -33,13 +33,11 @@ def get_data(filename): #Give a use default location option (could do a str comp
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Define what you would like graphed, and with what parameters')
     parser.add_argument('--words', type=str,help='Words seperated by hyphens (ex: "queen-king-peasent")')
-
-
     args = parser.parse_args()
+
     features, labels, text = get_data(args.words)
 
     word_data_groups = [] # Package the vector, labels, and text for each sentence together by word
-
     current_label = labels[0] 
     features_by_word = [] 
     labels_by_word = [] 
@@ -76,7 +74,7 @@ if __name__ == "__main__":
                 hovertext=(np.array(word_data_groups[i][2]))[clustered],
                 mode='markers',
                 marker=dict(
-                    color=clusters_by_embedding[i][clustered],#[word_to_id[label] for label in labels[:500]],
+                    color=clusters_by_embedding[i][clustered],
                     line=dict(
                         width=1,
                         color='DarkSlateGrey'
@@ -84,4 +82,4 @@ if __name__ == "__main__":
                 )
             )
         )
-        plot(fig, filename=f"./output/graphs/{title}.html")
+        plot(fig, filename=f"./graphs/{title}.html")
