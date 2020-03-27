@@ -342,31 +342,6 @@ def read_examples(input_file, words):
       id_int += 1
   return examples, guid_to_text
 
-  
-
-
-"""   examples = []
-  unique_id = 0
-  with tf.gfile.GFile(input_file, "r") as reader:
-    while True:
-      line = tokenization.convert_to_unicode(reader.readline())
-      if not line:
-        break
-      line = line.strip()
-      text_a = None
-      text_b = None
-      m = re.match(r"^(.*) \|\|\| (.*)$", line)
-      if m is None:
-        text_a = line
-      else:
-        text_a = m.group(1)
-        text_b = m.group(2)
-      examples.append(
-          InputExample(unique_id=unique_id, text_a=text_a, text_b=text_b))
-      unique_id += 1
-  return examples
- """
-
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -416,7 +391,7 @@ def main(_):
   # Use this regex later to remove the unique part of the unique id
   # (ex: state-142 -> state)
   # This allows us to group all of the features for each word together
-  rm_id = re.compile("-\d*") 
+  rm_id = re.compile(r"-\d*") 
   for result in estimator.predict(input_fn, yield_single_examples=True):
     unique_id = result["unique_id"].decode("utf-8")
     feature = unique_id_to_feature[unique_id]
