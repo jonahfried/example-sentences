@@ -15,11 +15,13 @@ import pandas as pd
 import boto3
 import spacy   # Used to split the Wikipedia articles into sentences
 
+import text_to_cluster as cluster
+
 
 # ——————— CONSTANTS —————————
 
 # S3 bucket and region in which wikipedia data resides
-S3_BUCKET = "dougb_wikipedia"
+S3_BUCKET = "datamuse-misc"
 S3_REGION = "us-east-1"
 
 # For each word, output this many example sentences
@@ -46,7 +48,7 @@ CORPUSES_TO_READ = 1
 s3 = boto3.resource('s3', region_name=S3_REGION)
 
 def read_s3_file(key):
-    return s3.Object(S3_BUCKET, key).get()["Body"].read().decode("utf-8").strip()
+    return s3.Object(S3_BUCKET, f"wikipedia/{key}").get()["Body"].read().decode("utf-8").strip()
 
 title_weights = {}  # title -> pageview count
 vocab = {x.split()[0].lower() for x in read_s3_file(VOCAB_FILE).split("\n")} # Set of words for which to extract example sentences
@@ -128,7 +130,7 @@ if __name__ == "__main__":
     files = []
     for i, key in enumerate(read_s3_file(CORPUS_FILE).split("\n")):
         files.append(_process_corpus_file(key))
-        if i > 10:
+        if i > 1:
             break
     
     # We can load the articles into a Dataframe
@@ -158,8 +160,58 @@ if __name__ == "__main__":
         
     )
 
-    words_by_sentence.select(
-        "title", "sentence", "word", "score"
-    ).toPandas().to_csv("words_by_sentence.csv")
+    # words_by_sentence.select(
+    #     "title", "sentence", "word", "score"
+    # ).toPandas().to_csv("words_by_sentence.csv")
+
+    package = udf(
+        lambda title, word, sentence, score: {"title" : title, "word": word, "sentence":sentence, "score":score},
+        StructType([
+            StructField("title", StringType(), True),
+            StructField("word", StringType(), True),
+            StructField("sentence", StringType(), True),
+            StructField("simplicity", FloatType(), True)
+        ])
+    )
+
+    words_by_sentence = words_by_sentence.select(
+        "word",
+        package(
+            words_by_sentence.title, 
+            words_by_sentence.word, 
+            words_by_sentence.sentence, 
+            words_by_sentence.score
+        ).alias("packaged_parse")
+    )
+
+    grouped = words_by_sentence.groupBy("word").agg(collect_list("packaged_parse"))
+    
+
+    cluster_spark = udf(
+        cluster.main,
+        ArrayType(
+            StructType([
+                StructField("title", StringType(), True),
+                StructField("word", StringType(), True),
+                StructField("sentence", StringType(), True),
+                StructField("simplicity", FloatType(), True),
+                StructField("cluster", IntegerType(), True),
+            ])
+        )
+    )
+
+    grouped = grouped.where(col("word") == "1970s").select(
+        "*",
+        explode(cluster_spark(grouped.word, col("collect_list(packaged_parse)"))).alias("packaged_parse")
+    )
+    grouped.show()
+
+    grouped.select(
+        "packaged_parse.title",
+        "packaged_parse.word",
+        "packaged_parse.sentence",
+        "packaged_parse.simplicity",
+        "packaged_parse.cluster"
+    ).show()
 
     spark.stop()
