@@ -162,10 +162,10 @@ if __name__ == "__main__":
 
     # words_by_sentence.select(
     #     "title", "sentence", "word", "score"
-    # ).toPandas().to_csv("words_by_sentence.csv")
+    # ).show() #toPandas().to_csv("words_by_sentence.csv")
 
     package = udf(
-        lambda title, word, sentence, score: {"title" : title, "word": word, "sentence":sentence, "score":score},
+        lambda title, word, sentence, score: [title, word, sentence, float(score)], #{"title" : title, "word": word, "sentence":sentence, "simplicity":score},
         StructType([
             StructField("title", StringType(), True),
             StructField("word", StringType(), True),
@@ -183,6 +183,7 @@ if __name__ == "__main__":
             words_by_sentence.score
         ).alias("packaged_parse")
     )
+
 
     grouped = words_by_sentence.groupBy("word").agg(collect_list("packaged_parse"))
     
@@ -204,7 +205,6 @@ if __name__ == "__main__":
         "*",
         explode(cluster_spark(grouped.word, col("collect_list(packaged_parse)"))).alias("packaged_parse")
     )
-    grouped.show()
 
     grouped.select(
         "packaged_parse.title",
