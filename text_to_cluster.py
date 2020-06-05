@@ -152,7 +152,7 @@ DO_LOWER_CASE = True
 
 BATCH_SIZE = 8 # maybe want this bigger on more cores?
 
-USE_TPU = False # Do we want this?
+USE_TPU = False
 
 MASTER = None
 

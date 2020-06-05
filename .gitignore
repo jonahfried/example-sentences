@@ -8,3 +8,4 @@ graphs
 bert-base-uncased
 ./example_sentences.json
 *.json
+words_by_sentence.csv
